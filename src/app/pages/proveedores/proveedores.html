@@ -1,0 +1,467 @@
+<div class="proveedores-container">
+  <!-- Header -->
+  <div class="header">
+    <h1>🏭 Gestión de Proveedores</h1>
+    <button class="btn btn-primary" (click)="abrirFormularioNuevo()">
+      <span class="icon">+</span> Nuevo Proveedor
+    </button>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="messages">
+    <div class="alert alert-success" *ngIf="mensajeExito">
+      {{ mensajeExito }}
+    </div>
+    <div class="alert alert-error" *ngIf="error">
+      {{ error }}
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros-card">
+    <h3>Filtros</h3>
+    <div class="filtros-grid">
+      <div class="form-group">
+        <label for="filtroBusqueda">Buscar por Nombre</label>
+        <input
+          type="text"
+          id="filtroBusqueda"
+          [(ngModel)]="filtros.q"
+          placeholder="Buscar proveedores..."
+          class="form-control"
+          (keyup.enter)="aplicarFiltros()"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="filtroCorreo">Buscar por Correo</label>
+        <input
+          type="text"
+          id="filtroCorreo"
+          [(ngModel)]="filtros.correo"
+          placeholder="Correo del proveedor..."
+          class="form-control"
+          (keyup.enter)="aplicarFiltros()"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="filtroMinSaldo">Saldo Mínimo</label>
+        <input
+          type="number"
+          id="filtroMinSaldo"
+          [(ngModel)]="filtros.minSaldo"
+          step="0.01"
+          min="0"
+          class="form-control"
+          placeholder="0.00"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="filtroMaxSaldo">Saldo Máximo</label>
+        <input
+          type="number"
+          id="filtroMaxSaldo"
+          [(ngModel)]="filtros.maxSaldo"
+          step="0.01"
+          min="0"
+          class="form-control"
+          placeholder="0.00"
+        />
+      </div>
+    </div>
+
+    <div class="filtros-actions">
+      <button class="btn btn-primary" (click)="aplicarFiltros()">
+        🔍 Buscar
+      </button>
+      <button class="btn btn-secondary" (click)="limpiarFiltros()">
+        🗑️ Limpiar
+      </button>
+    </div>
+  </div>
+
+  <!-- Resúmenes -->
+  <div class="resumenes-grid">
+    <div class="resumen-card total-general">
+      <div class="resumen-header">
+        <span class="resumen-icon">🏭</span>
+        <h4>Total Proveedores</h4>
+      </div>
+      <div class="resumen-valor">{{ proveedores.length }}</div>
+      <div class="resumen-detalle">proveedores registrados</div>
+    </div>
+
+    <div class="resumen-card saldo-pendiente">
+      <div class="resumen-header">
+        <span class="resumen-icon">💰</span>
+        <h4>Saldo Pendiente Total</h4>
+      </div>
+      <div class="resumen-valor">{{ formatearMoneda(getTotalSaldoPendiente()) }}</div>
+      <div class="resumen-detalle">{{ getProveedoresConSaldo() }} proveedores</div>
+    </div>
+
+    <div class="resumen-card saldo-al-dia">
+      <div class="resumen-header">
+        <span class="resumen-icon">✅</span>
+        <h4>Proveedores al Día</h4>
+      </div>
+      <div class="resumen-valor">{{ getProveedoresAlDia() }}</div>
+      <div class="resumen-detalle">sin saldo pendiente</div>
+    </div>
+  </div>
+
+  <!-- Tabla de Proveedores -->
+  <div class="tabla-card">
+    <h3>Lista de Proveedores</h3>
+    
+    <div class="loading-spinner" *ngIf="cargando">
+      <div class="spinner"></div>
+      <p>Cargando proveedores...</p>
+    </div>
+
+    <div class="tabla-container" *ngIf="!cargando">
+      <table class="tabla-proveedores">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Proveedor</th>
+            <th>Contacto</th>
+            <th>Dirección</th>
+            <th>Saldo Pendiente</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="proveedoresFiltrados.length === 0">
+            <td colspan="7" class="no-data">
+              No hay proveedores para mostrar
+            </td>
+          </tr>
+          <tr *ngFor="let proveedor of proveedoresFiltrados">
+            <td>{{ proveedor.proveedorId }}</td>
+            <td>
+              <div class="proveedor-info">
+                <strong>{{ proveedor.nombreProveedor }}</strong>
+              </div>
+            </td>
+            <td>
+              <div class="contacto-info">
+                <div class="correo">📧 {{ proveedor.correo }}</div>
+                <div class="telefono">📞 {{ proveedor.telefono }}</div>
+              </div>
+            </td>
+            <td class="direccion">{{ proveedor.direccion }}</td>
+            <td class="saldo" [ngClass]="{'saldo-pendiente': proveedor.saldoPendiente > 0}">
+              {{ formatearMoneda(proveedor.saldoPendiente) }}
+            </td>
+            <td>
+              <span 
+                class="badge-estado"
+                [ngClass]="getEstadoSaldo(proveedor.saldoPendiente).clase"
+              >
+                {{ getEstadoSaldo(proveedor.saldoPendiente).texto }}
+              </span>
+            </td>
+            <td>
+              <div class="acciones">
+                <button
+                  class="btn-icon btn-cargar"
+                  (click)="abrirCargarSaldo(proveedor)"
+                  title="Cargar Saldo"
+                >
+                  ➕
+                </button>
+                <button
+                  class="btn-icon btn-abonar"
+                  (click)="abrirAbonarSaldo(proveedor)"
+                  title="Abonar Saldo"
+                >
+                  ➖
+                </button>
+                <button
+                  class="btn-icon btn-actualizar"
+                  (click)="abrirActualizarSaldo(proveedor)"
+                  title="Actualizar Saldo"
+                >
+                  💰
+                </button>
+                <button
+                  class="btn-icon btn-edit"
+                  (click)="abrirFormularioEdicion(proveedor)"
+                  title="Editar"
+                >
+                  ✏️
+                </button>
+                <button
+                  class="btn-icon btn-delete"
+                  (click)="eliminarProveedor(proveedor.proveedorId)"
+                  title="Eliminar"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de Formulario -->
+  <div class="modal-overlay" *ngIf="mostrarFormulario" (click)="cerrarFormulario()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ modoEdicion ? 'Editar Proveedor' : 'Nuevo Proveedor' }}</h2>
+        <button class="btn-close" (click)="cerrarFormulario()">✕</button>
+      </div>
+
+      <form (ngSubmit)="guardarProveedor()" class="form-proveedor">
+        <div class="form-group">
+          <label for="nombreProveedor">Nombre del Proveedor *</label>
+          <input
+            type="text"
+            id="nombreProveedor"
+            [(ngModel)]="proveedorForm.nombreProveedor"
+            name="nombreProveedor"
+            required
+            class="form-control"
+            placeholder="Ej: Proveedor XYZ"
+          />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="correo">Correo Electrónico *</label>
+            <input
+              type="email"
+              id="correo"
+              [(ngModel)]="proveedorForm.correo"
+              name="correo"
+              required
+              class="form-control"
+              placeholder="ejemplo@correo.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="telefono">Teléfono *</label>
+            <input
+              type="text"
+              id="telefono"
+              [(ngModel)]="proveedorForm.telefono"
+              name="telefono"
+              required
+              class="form-control"
+              placeholder="Ej: 5551234567"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="direccion">Dirección *</label>
+          <textarea
+            id="direccion"
+            [(ngModel)]="proveedorForm.direccion"
+            name="direccion"
+            rows="3"
+            required
+            class="form-control"
+            placeholder="Dirección completa del proveedor..."
+          ></textarea>
+        </div>
+
+        <div class="form-group" *ngIf="modoEdicion">
+          <label for="saldoPendiente">Saldo Pendiente</label>
+          <input
+            type="number"
+            id="saldoPendiente"
+            [(ngModel)]="proveedorForm.saldoPendiente"
+            name="saldoPendiente"
+            step="0.01"
+            min="0"
+            class="form-control"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cerrarFormulario()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="cargando">
+            {{ cargando ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Crear') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal para Cargar Saldo -->
+  <div class="modal-overlay" *ngIf="mostrarCargarSaldo" (click)="cerrarOperacionSaldo()">
+    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Cargar Saldo</h2>
+        <button class="btn-close" (click)="cerrarOperacionSaldo()">✕</button>
+      </div>
+
+      <div class="operacion-saldo-content" *ngIf="proveedorOperacion">
+        <div class="proveedor-info">
+          <h3>{{ proveedorOperacion.nombreProveedor }}</h3>
+          <p class="saldo-actual">
+            Saldo actual: <strong>{{ formatearMoneda(proveedorOperacion.saldoPendiente) }}</strong>
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label for="montoCargar">Monto a Cargar *</label>
+          <input
+            type="number"
+            id="montoCargar"
+            [(ngModel)]="montoOperacion"
+            step="0.01"
+            min="0.01"
+            required
+            class="form-control form-control-lg"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="resultado-operacion" *ngIf="montoOperacion > 0">
+          <p>Nuevo saldo será:</p>
+          <div class="nuevo-saldo">
+            {{ formatearMoneda(proveedorOperacion.saldoPendiente + montoOperacion) }}
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cerrarOperacionSaldo()">
+            Cancelar
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-primary" 
+            (click)="ejecutarCargarSaldo()"
+            [disabled]="cargando || montoOperacion <= 0"
+          >
+            {{ cargando ? 'Cargando...' : 'Cargar Saldo' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para Abonar Saldo -->
+  <div class="modal-overlay" *ngIf="mostrarAbonarSaldo" (click)="cerrarOperacionSaldo()">
+    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Abonar Saldo</h2>
+        <button class="btn-close" (click)="cerrarOperacionSaldo()">✕</button>
+      </div>
+
+      <div class="operacion-saldo-content" *ngIf="proveedorOperacion">
+        <div class="proveedor-info">
+          <h3>{{ proveedorOperacion.nombreProveedor }}</h3>
+          <p class="saldo-actual">
+            Saldo actual: <strong>{{ formatearMoneda(proveedorOperacion.saldoPendiente) }}</strong>
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label for="montoAbonar">Monto a Abonar *</label>
+          <input
+            type="number"
+            id="montoAbonar"
+            [(ngModel)]="montoOperacion"
+            step="0.01"
+            min="0.01"
+            required
+            class="form-control form-control-lg"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="resultado-operacion" *ngIf="montoOperacion > 0">
+          <p>Nuevo saldo será:</p>
+          <div class="nuevo-saldo">
+            {{ formatearMoneda(proveedorOperacion.saldoPendiente - montoOperacion) }}
+          </div>
+        </div>
+
+        <div class="alert alert-error" *ngIf="montoOperacion > proveedorOperacion.saldoPendiente">
+          ⚠️ El monto a abonar no puede ser mayor al saldo actual
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cerrarOperacionSaldo()">
+            Cancelar
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-primary" 
+            (click)="ejecutarAbonarSaldo()"
+            [disabled]="cargando || montoOperacion <= 0 || montoOperacion > proveedorOperacion.saldoPendiente"
+          >
+            {{ cargando ? 'Abonando...' : 'Abonar Saldo' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para Actualizar Saldo -->
+  <div class="modal-overlay" *ngIf="mostrarActualizarSaldo" (click)="cerrarOperacionSaldo()">
+    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Actualizar Saldo</h2>
+        <button class="btn-close" (click)="cerrarOperacionSaldo()">✕</button>
+      </div>
+
+      <div class="operacion-saldo-content" *ngIf="proveedorOperacion">
+        <div class="proveedor-info">
+          <h3>{{ proveedorOperacion.nombreProveedor }}</h3>
+          <p class="saldo-actual">
+            Saldo actual: <strong>{{ formatearMoneda(proveedorOperacion.saldoPendiente) }}</strong>
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label for="nuevoSaldo">Nuevo Saldo *</label>
+          <input
+            type="number"
+            id="nuevoSaldo"
+            [(ngModel)]="nuevoSaldo"
+            step="0.01"
+            min="0"
+            required
+            class="form-control form-control-lg"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="resultado-operacion" *ngIf="nuevoSaldo !== proveedorOperacion.saldoPendiente">
+          <p>El saldo será actualizado a:</p>
+          <div class="nuevo-saldo">
+            {{ formatearMoneda(nuevoSaldo) }}
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cerrarOperacionSaldo()">
+            Cancelar
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-primary" 
+            (click)="ejecutarActualizarSaldo()"
+            [disabled]="cargando || nuevoSaldo < 0"
+          >
+            {{ cargando ? 'Actualizando...' : 'Actualizar Saldo' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

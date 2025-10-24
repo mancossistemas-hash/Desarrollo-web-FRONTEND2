@@ -1,0 +1,351 @@
+<div class="inventario-container">
+  <!-- Header -->
+  <div class="header">
+    <h1>📦 Gestión de Inventario</h1>
+    <button class="btn btn-primary" (click)="abrirFormularioNuevo()">
+      <span class="icon">+</span> Nuevo Producto
+    </button>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="messages">
+    <div class="alert alert-success" *ngIf="mensajeExito">
+      {{ mensajeExito }}
+    </div>
+    <div class="alert alert-error" *ngIf="error">
+      {{ error }}
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros-card">
+    <h3>Filtros</h3>
+    <div class="filtros-grid">
+      <div class="form-group">
+        <label for="filtroTipo">Tipo de Producto</label>
+        <select id="filtroTipo" [(ngModel)]="filtros.tipo" class="form-control">
+          <option value="">Todos los tipos</option>
+          <option *ngFor="let tipo of tiposProducto" [value]="tipo">
+            {{ tipo }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="filtroNombre">Buscar por Nombre</label>
+        <input
+          type="text"
+          id="filtroNombre"
+          [(ngModel)]="filtros.q"
+          placeholder="Nombre del producto..."
+          class="form-control"
+        />
+      </div>
+    </div>
+
+    <div class="filtros-actions">
+      <button class="btn btn-primary" (click)="aplicarFiltros()">
+        Aplicar Filtros
+      </button>
+      <button class="btn btn-secondary" (click)="limpiarFiltros()">
+        Limpiar
+      </button>
+    </div>
+  </div>
+
+  <!-- Resúmenes -->
+  <div class="resumenes-grid">
+    <div class="resumen-card total-general">
+      <div class="resumen-header">
+        <span class="resumen-icon">💰</span>
+        <h4>Valor Total Inventario</h4>
+      </div>
+      <div class="resumen-valor">{{ formatearMoneda(valorTotalInventario) }}</div>
+      <div class="resumen-detalle">{{ totalProductos }} productos</div>
+    </div>
+
+    <div 
+      class="resumen-card"
+      *ngFor="let tipo of tiposProducto"
+      [style.border-left-color]="getColorTipo(tipo)"
+    >
+      <div class="resumen-header">
+        <span class="resumen-icon">{{ getIconoTipo(tipo) }}</span>
+        <h4>{{ tipo }}</h4>
+      </div>
+      <div class="resumen-valor">{{ formatearMoneda(getValorTotalPorTipo(tipo)) }}</div>
+      <div class="resumen-detalle">{{ getTotalProductosPorTipo(tipo) }} productos</div>
+    </div>
+  </div>
+
+  <!-- Tabla de Productos -->
+  <div class="tabla-card">
+    <h3>Productos en Inventario</h3>
+    
+    <div class="loading-spinner" *ngIf="cargando">
+      <div class="spinner"></div>
+      <p>Cargando...</p>
+    </div>
+
+    <div class="tabla-container" *ngIf="!cargando">
+      <table class="tabla-productos">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Producto</th>
+            <th>Tipo</th>
+            <th>Stock</th>
+            <th>Estado</th>
+            <th>Precio Unit.</th>
+            <th>Valor Total</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="productosFiltrados.length === 0">
+            <td colspan="8" class="no-data">
+              No hay productos para mostrar
+            </td>
+          </tr>
+          <tr *ngFor="let producto of productosFiltrados">
+            <td>{{ producto.productoId }}</td>
+            <td>
+              <div class="producto-info">
+                <strong>{{ producto.nombreProducto }}</strong>
+                <small *ngIf="producto.descripcion">{{ producto.descripcion }}</small>
+              </div>
+            </td>
+            <td>
+              <span 
+                class="badge"
+                [style.background-color]="getColorTipo(producto.tipoProducto)"
+              >
+                {{ getIconoTipo(producto.tipoProducto) }} {{ producto.tipoProducto }}
+              </span>
+            </td>
+            <td class="stock-cantidad">{{ producto.cantidadExistente }}</td>
+            <td>
+              <span 
+                class="badge-stock"
+                [ngClass]="getEstadoStock(producto.cantidadExistente).clase"
+              >
+                {{ getEstadoStock(producto.cantidadExistente).texto }}
+              </span>
+            </td>
+            <td class="precio">{{ formatearMoneda(producto.precioUnitario) }}</td>
+            <td class="valor-total">{{ formatearMoneda(calcularValorTotal(producto)) }}</td>
+            <td>
+              <div class="acciones">
+                <button
+                  class="btn-icon btn-adjust"
+                  (click)="abrirAjusteStock(producto)"
+                  title="Ajustar Stock"
+                >
+                  📊
+                </button>
+                <button
+                  class="btn-icon btn-edit"
+                  (click)="abrirFormularioEdicion(producto)"
+                  title="Editar"
+                >
+                  ✏️
+                </button>
+                <button
+                  class="btn-icon btn-delete"
+                  (click)="eliminarProducto(producto.productoId!)"
+                  title="Eliminar"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de Formulario -->
+  <div class="modal-overlay" *ngIf="mostrarFormulario" (click)="cerrarFormulario()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ modoEdicion ? 'Editar Producto' : 'Nuevo Producto' }}</h2>
+        <button class="btn-close" (click)="cerrarFormulario()">✕</button>
+      </div>
+
+      <form (ngSubmit)="guardarProducto()" class="form-producto">
+        <div class="form-group">
+          <label for="nombreProducto">Nombre del Producto *</label>
+          <input
+            type="text"
+            id="nombreProducto"
+            [(ngModel)]="productoForm.nombreProducto"
+            name="nombreProducto"
+            required
+            class="form-control"
+            placeholder="Ej: Laptop Dell Inspiron"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="tipoProducto">Tipo de Producto *</label>
+          <select
+            id="tipoProducto"
+            [(ngModel)]="productoForm.tipoProducto"
+            name="tipoProducto"
+            required
+            class="form-control"
+          >
+            <option value="">Seleccione un tipo</option>
+            <option *ngFor="let tipo of tiposProducto" [value]="tipo">
+              {{ getIconoTipo(tipo) }} {{ tipo }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cantidadExistente">Cantidad Existente *</label>
+            <input
+              type="number"
+              id="cantidadExistente"
+              [(ngModel)]="productoForm.cantidadExistente"
+              name="cantidadExistente"
+              min="0"
+              required
+              class="form-control"
+              placeholder="0"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="precioUnitario">Precio Unitario (Q) *</label>
+            <input
+              type="number"
+              id="precioUnitario"
+              [(ngModel)]="productoForm.precioUnitario"
+              name="precioUnitario"
+              step="0.01"
+              min="0"
+              required
+              class="form-control"
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="descripcion">Descripción</label>
+          <textarea
+            id="descripcion"
+            [(ngModel)]="productoForm.descripcion"
+            name="descripcion"
+            rows="3"
+            class="form-control"
+            placeholder="Descripción del producto..."
+          ></textarea>
+        </div>
+
+        <div class="valor-calculado" *ngIf="productoForm.cantidadExistente && productoForm.precioUnitario">
+          <strong>Valor Total:</strong> 
+          {{ formatearMoneda(productoForm.cantidadExistente * productoForm.precioUnitario) }}
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cerrarFormulario()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="cargando">
+            {{ cargando ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Crear') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Ajuste de Stock -->
+  <div class="modal-overlay" *ngIf="mostrarAjusteStock" (click)="cerrarAjusteStock()">
+    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Ajustar Stock</h2>
+        <button class="btn-close" (click)="cerrarAjusteStock()">✕</button>
+      </div>
+
+      <div class="ajuste-stock-content" *ngIf="productoAjuste">
+        <div class="producto-ajuste-info">
+          <h3>{{ productoAjuste.nombreProducto }}</h3>
+          <p class="stock-actual">
+            Stock actual: <strong>{{ productoAjuste.cantidadExistente }}</strong> unidades
+          </p>
+        </div>
+
+        <form (ngSubmit)="aplicarAjusteStock()" class="form-ajuste">
+          <div class="form-group">
+            <label>Operación</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  [(ngModel)]="ajusteStock.operacion"
+                  name="operacion"
+                  value="sumar"
+                />
+                <span>➕ Aumentar Stock</span>
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  [(ngModel)]="ajusteStock.operacion"
+                  name="operacion"
+                  value="restar"
+                />
+                <span>➖ Disminuir Stock</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cantidadAjuste">Cantidad *</label>
+            <input
+              type="number"
+              id="cantidadAjuste"
+              [(ngModel)]="ajusteStock.cantidad"
+              name="cantidad"
+              min="1"
+              required
+              class="form-control form-control-lg"
+              placeholder="0"
+            />
+          </div>
+
+          <div class="resultado-ajuste" *ngIf="ajusteStock.cantidad > 0">
+            <p>Nuevo stock será:</p>
+            <div class="nuevo-stock">
+              {{ ajusteStock.operacion === 'sumar' 
+                ? productoAjuste.cantidadExistente + ajusteStock.cantidad 
+                : productoAjuste.cantidadExistente - ajusteStock.cantidad 
+              }} unidades
+            </div>
+          </div>
+
+          <div class="alert alert-error" *ngIf="ajusteStock.operacion === 'restar' && ajusteStock.cantidad > productoAjuste.cantidadExistente">
+            ⚠️ No hay suficiente stock para esta operación
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" (click)="cerrarAjusteStock()">
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              class="btn btn-primary" 
+              [disabled]="cargando || ajusteStock.cantidad <= 0 || (ajusteStock.operacion === 'restar' && ajusteStock.cantidad > productoAjuste.cantidadExistente)"
+            >
+              {{ cargando ? 'Aplicando...' : 'Aplicar Ajuste' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

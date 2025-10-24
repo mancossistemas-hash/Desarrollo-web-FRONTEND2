@@ -1,0 +1,200 @@
+<div class="balances-container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <h1 class="title">
+        <i class="icon-balance"></i>
+        Balance de Saldos
+      </h1>
+      <p class="subtitle">Consulta y gestiona el balance de cuentas</p>
+    </div>
+    <button class="btn-primary" (click)="abrirModalGenerar()" [disabled]="cargando">
+      <span class="icon">+</span>
+      Generar Balance
+    </button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters-card">
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label for="busqueda">Buscar Cuenta</label>
+        <input 
+          type="text" 
+          id="busqueda"
+          [(ngModel)]="busquedaTexto"
+          (ngModelChange)="aplicarFiltros()"
+          placeholder="Código o nombre de cuenta..."
+          class="input-field"
+        />
+      </div>
+
+      <div class="filter-group">
+        <label for="tipoCuenta">Tipo de Cuenta</label>
+        <select 
+          id="tipoCuenta"
+          [(ngModel)]="tipoCuentaFiltro"
+          (ngModelChange)="aplicarFiltros()"
+          class="select-field"
+        >
+          <option value="">Todos los tipos</option>
+          <option *ngFor="let tipo of tiposCuenta" [value]="tipo">{{ tipo }}</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button class="btn-secondary" (click)="limpiarFiltros()">
+          Limpiar Filtros
+        </button>
+        <button class="btn-secondary" (click)="exportarCSV()">
+          📥 Exportar CSV
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tarjetas de Resumen -->
+  <div class="summary-cards">
+    <div class="summary-card deudor">
+      <div class="summary-icon">💰</div>
+      <div class="summary-content">
+        <p class="summary-label">Total Saldo Deudor</p>
+        <p class="summary-value">{{ formatearMoneda(totalDeudor) }}</p>
+      </div>
+    </div>
+
+    <div class="summary-card acreedor">
+      <div class="summary-icon">📊</div>
+      <div class="summary-content">
+        <p class="summary-label">Total Saldo Acreedor</p>
+        <p class="summary-value">{{ formatearMoneda(totalAcreedor) }}</p>
+      </div>
+    </div>
+
+    <div class="summary-card diferencia">
+      <div class="summary-icon">⚖️</div>
+      <div class="summary-content">
+        <p class="summary-label">Diferencia</p>
+        <p class="summary-value">{{ formatearMoneda(totalDeudor - totalAcreedor) }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensaje de Error -->
+  <div *ngIf="error" class="alert alert-error">
+    <span class="alert-icon">⚠️</span>
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="cargando" class="loading">
+    <div class="spinner"></div>
+    <p>Cargando balances...</p>
+  </div>
+
+  <!-- Tabla de Balances -->
+  <div *ngIf="!cargando && balancesFiltrados.length > 0" class="table-container">
+    <table class="balances-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre de Cuenta</th>
+          <th>Tipo</th>
+          <th class="text-right">Saldo Deudor</th>
+          <th class="text-right">Saldo Acreedor</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let balance of balancesFiltrados" class="balance-row">
+          <td>
+            <span class="codigo-badge">{{ balance.codigoCuenta }}</span>
+          </td>
+          <td class="nombre-cuenta">{{ balance.nombreCuenta }}</td>
+          <td>
+            <span 
+              class="tipo-badge" 
+              [style.background-color]="getColorTipoCuenta(balance.tipoCuenta)"
+            >
+              {{ balance.tipoCuenta }}
+            </span>
+          </td>
+          <td class="text-right saldo-deudor">
+            <span *ngIf="balance.saldoDeudor > 0">
+              {{ formatearMoneda(balance.saldoDeudor) }}
+            </span>
+            <span *ngIf="balance.saldoDeudor === 0" class="text-muted">-</span>
+          </td>
+          <td class="text-right saldo-acreedor">
+            <span *ngIf="balance.saldoAcreedor > 0">
+              {{ formatearMoneda(balance.saldoAcreedor) }}
+            </span>
+            <span *ngIf="balance.saldoAcreedor === 0" class="text-muted">-</span>
+          </td>
+          <td>
+            <span class="fecha">{{ balance.fecha }}</span>
+          </td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="totales-row">
+          <td colspan="3"><strong>TOTALES</strong></td>
+          <td class="text-right"><strong>{{ formatearMoneda(totalDeudor) }}</strong></td>
+          <td class="text-right"><strong>{{ formatearMoneda(totalAcreedor) }}</strong></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Sin Resultados -->
+  <div *ngIf="!cargando && balancesFiltrados.length === 0" class="empty-state">
+    <div class="empty-icon">📋</div>
+    <h3>No hay balances registrados</h3>
+    <p>Genera un balance para comenzar</p>
+    <button class="btn-primary" (click)="abrirModalGenerar()">
+      Generar Balance
+    </button>
+  </div>
+</div>
+
+<!-- Modal Generar Balance -->
+<div *ngIf="mostrarModalGenerar" class="modal-overlay" (click)="cerrarModalGenerar()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Generar Balance de Saldos</h2>
+      <button class="btn-close" (click)="cerrarModalGenerar()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <p class="modal-description">
+        Selecciona la fecha de corte para generar el balance de todas las cuentas.
+      </p>
+      
+      <div class="form-group">
+        <label for="fechaGenerar">Fecha de Corte</label>
+        <input 
+          type="date" 
+          id="fechaGenerar"
+          [(ngModel)]="fechaGenerar"
+          class="input-field"
+          [max]="fechaGenerar"
+        />
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="cerrarModalGenerar()">
+        Cancelar
+      </button>
+      <button 
+        class="btn-primary" 
+        (click)="generarBalance()"
+        [disabled]="!fechaGenerar || cargando"
+      >
+        <span *ngIf="!cargando">Generar Balance</span>
+        <span *ngIf="cargando">Generando...</span>
+      </button>
+    </div>
+  </div>
+</div>

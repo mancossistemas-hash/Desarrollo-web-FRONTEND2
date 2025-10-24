@@ -1,0 +1,234 @@
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>📖 Libro Mayor</h1>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="imprimirReporte()" title="Imprimir">
+        🖨️ Imprimir
+      </button>
+      <button 
+        class="btn-export" 
+        (click)="vistaActual === 'por-cuenta' && cuentaSeleccionada ? exportarExcelPorCuenta() : exportarExcel()" 
+        title="Exportar a Excel"
+        [disabled]="movimientosFiltrados.length === 0"
+      >
+        📊 Exportar Excel
+      </button>
+    </div>
+  </div>
+
+  <!-- Mensajes de alerta -->
+  <div *ngIf="successMessage" class="alert alert-success">
+    ✅ {{ successMessage }}
+  </div>
+  <div *ngIf="errorMessage" class="alert alert-error">
+    ❌ {{ errorMessage }}
+  </div>
+
+  <!-- Tabs de vista -->
+  <div class="tabs">
+    <button 
+      class="tab" 
+      [class.active]="vistaActual === 'todos'"
+      (click)="cambiarVista('todos')"
+    >
+      📋 Todos los Movimientos
+    </button>
+    <button 
+      class="tab" 
+      [class.active]="vistaActual === 'por-cuenta'"
+      (click)="cambiarVista('por-cuenta')"
+    >
+      🔍 Por Cuenta
+    </button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters-card">
+    <h3>🔍 Filtros</h3>
+    <div class="filters-grid">
+      <!-- Filtro de cuenta -->
+      <div class="filter-group">
+        <label for="cuenta">Cuenta</label>
+        <select 
+          id="cuenta" 
+          [(ngModel)]="cuentaSeleccionada" 
+          (change)="onCuentaChange()"
+          class="filter-select"
+        >
+          <option [ngValue]="null">Todas las cuentas</option>
+          <option *ngFor="let cuenta of cuentas" [ngValue]="cuenta.cuentaId">
+            {{ cuenta.codigoCuenta }} - {{ cuenta.nombreCuenta }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Filtro de fecha inicio -->
+      <div class="filter-group">
+        <label for="fechaInicio">Fecha Inicio</label>
+        <input 
+          type="date" 
+          id="fechaInicio" 
+          [(ngModel)]="fechaInicio"
+          (change)="onFechaChange()"
+          class="filter-input"
+        >
+      </div>
+
+      <!-- Filtro de fecha fin -->
+      <div class="filter-group">
+        <label for="fechaFin">Fecha Fin</label>
+        <input 
+          type="date" 
+          id="fechaFin" 
+          [(ngModel)]="fechaFin"
+          (change)="onFechaChange()"
+          class="filter-input"
+        >
+      </div>
+
+      <!-- Botón limpiar -->
+      <div class="filter-group">
+        <label>&nbsp;</label>
+        <button class="btn-clear" (click)="limpiarFiltros()">
+          🧹 Limpiar Filtros
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estadísticas -->
+  <div class="stats-grid">
+    <div class="stat-card stat-debito">
+      <div class="stat-icon">💰</div>
+      <div class="stat-content">
+        <div class="stat-label">Total Débitos</div>
+        <div class="stat-value">Q {{ totalDebitos | number:'1.2-2' }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card stat-credito">
+      <div class="stat-icon">💸</div>
+      <div class="stat-content">
+        <div class="stat-label">Total Créditos</div>
+        <div class="stat-value">Q {{ totalCreditos | number:'1.2-2' }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card stat-saldo">
+      <div class="stat-icon">📊</div>
+      <div class="stat-content">
+        <div class="stat-label">Saldo</div>
+        <div class="stat-value" [class.negative]="(totalDebitos - totalCreditos) < 0">
+          Q {{ (totalDebitos - totalCreditos) | number:'1.2-2' }}
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card stat-movimientos" *ngIf="vistaActual === 'por-cuenta' && cuentaSeleccionada">
+      <div class="stat-icon">🔢</div>
+      <div class="stat-content">
+        <div class="stat-label">Saldo de Cuenta</div>
+        <div class="stat-value" [class.negative]="saldoCuenta < 0">
+          Q {{ saldoCuenta | number:'1.2-2' }}
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card stat-movimientos" *ngIf="vistaActual === 'todos'">
+      <div class="stat-icon">📝</div>
+      <div class="stat-content">
+        <div class="stat-label">Total Movimientos</div>
+        <div class="stat-value">{{ movimientosFiltrados.length }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading spinner -->
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Cargando movimientos...</p>
+  </div>
+
+  <!-- Tabla de movimientos -->
+  <div class="table-container" *ngIf="!loading">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Fecha</th>
+          <th>Cuenta</th>
+          <th>Tipo</th>
+          <th>Transacción</th>
+          <th class="text-right">Débito</th>
+          <th class="text-right">Crédito</th>
+          <th class="text-right">Saldo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let movimiento of movimientosFiltrados; trackBy: trackByMayorId">
+          <td class="text-center">{{ movimiento.mayorId }}</td>
+          <td>{{ movimiento.fecha | date:'dd/MM/yyyy' }}</td>
+          <td>
+            <span class="cuenta-badge">
+              {{ getCuentaNombreFromMovimiento(movimiento) }}
+            </span>
+          </td>
+          <td>
+            <span class="tipo-badge" [ngClass]="getTipoCuentaBadge(movimiento)">
+              {{ movimiento.cuenta.tipoCuenta }}
+            </span>
+          </td>
+          <td class="descripcion-cell">
+            <span class="transaccion-id">#{{ movimiento.transaccion.transaccion_id }}</span>
+            <span class="descripcion-text">{{ movimiento.transaccion.descripcion || 'Sin descripción' }}</span>
+          </td>
+          <td class="text-right">
+            <span *ngIf="movimiento.debito > 0" class="amount debito">
+              Q {{ movimiento.debito | number:'1.2-2' }}
+            </span>
+            <span *ngIf="movimiento.debito === 0" class="text-muted">-</span>
+          </td>
+          <td class="text-right">
+            <span *ngIf="movimiento.credito > 0" class="amount credito">
+              Q {{ movimiento.credito | number:'1.2-2' }}
+            </span>
+            <span *ngIf="movimiento.credito === 0" class="text-muted">-</span>
+          </td>
+          <td class="text-right">
+            <span *ngIf="movimiento.saldo !== undefined && movimiento.saldo !== null" 
+                  class="amount saldo"
+                  [class.negative]="movimiento.saldo < 0">
+              Q {{ movimiento.saldo | number:'1.2-2' }}
+            </span>
+            <span *ngIf="movimiento.saldo === undefined || movimiento.saldo === null" class="text-muted">
+              -
+            </span>
+          </td>
+        </tr>
+        <tr *ngIf="movimientosFiltrados.length === 0">
+          <td colspan="8" class="text-center empty-state">
+            <div class="empty-icon">📭</div>
+            <p>No hay movimientos registrados con los filtros aplicados</p>
+          </td>
+        </tr>
+      </tbody>
+      <tfoot *ngIf="movimientosFiltrados.length > 0">
+        <tr class="total-row">
+          <td colspan="5" class="text-right"><strong>TOTALES:</strong></td>
+          <td class="text-right">
+            <strong class="total-debito">Q {{ totalDebitos | number:'1.2-2' }}</strong>
+          </td>
+          <td class="text-right">
+            <strong class="total-credito">Q {{ totalCreditos | number:'1.2-2' }}</strong>
+          </td>
+          <td class="text-right">
+            <strong class="total-saldo" [class.negative]="(totalDebitos - totalCreditos) < 0">
+              Q {{ (totalDebitos - totalCreditos) | number:'1.2-2' }}
+            </strong>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>

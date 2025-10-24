@@ -1,0 +1,242 @@
+<div class="clientes-container">
+  <!-- Header -->
+  <div class="header">
+    <h1>👥 Gestión de Clientes</h1>
+    <button class="btn btn-primary" (click)="abrirFormularioNuevo()">
+      <span class="icon">+</span> Nuevo Cliente
+    </button>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="messages">
+    <div class="alert alert-success" *ngIf="mensajeExito">
+      {{ mensajeExito }}
+    </div>
+    <div class="alert alert-error" *ngIf="error">
+      {{ error }}
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros-card">
+    <h3>Filtros</h3>
+    <div class="filtros-grid">
+      <div class="form-group">
+        <label for="filtroBusqueda">Buscar (Nombre o Correo)</label>
+        <input
+          type="text"
+          id="filtroBusqueda"
+          [(ngModel)]="filtros.q"
+          placeholder="Buscar clientes..."
+          class="form-control"
+          (keyup.enter)="aplicarFiltros()"
+        />
+      </div>
+    </div>
+
+    <div class="filtros-actions">
+      <button class="btn btn-primary" (click)="aplicarFiltros()">
+        🔍 Buscar
+      </button>
+      <button class="btn btn-secondary" (click)="limpiarFiltros()">
+        🗑️ Limpiar
+      </button>
+    </div>
+  </div>
+
+  <!-- Resúmenes -->
+  <div class="resumenes-grid">
+    <div class="resumen-card total-general">
+      <div class="resumen-header">
+        <span class="resumen-icon">👥</span>
+        <h4>Total Clientes</h4>
+      </div>
+      <div class="resumen-valor">{{ clientes.length }}</div>
+      <div class="resumen-detalle">clientes registrados</div>
+    </div>
+
+    <div class="resumen-card saldo-pendiente">
+      <div class="resumen-header">
+        <span class="resumen-icon">💰</span>
+        <h4>Saldo Pendiente Total</h4>
+      </div>
+      <div class="resumen-valor">{{ formatearMoneda(getTotalSaldoPendiente()) }}</div>
+      <div class="resumen-detalle">{{ getClientesConSaldo() }} clientes</div>
+    </div>
+
+    <div class="resumen-card saldo-al-dia">
+      <div class="resumen-header">
+        <span class="resumen-icon">✅</span>
+        <h4>Clientes al Día</h4>
+      </div>
+      <div class="resumen-valor">{{ getClientesAlDia() }}</div>
+      <div class="resumen-detalle">sin saldo pendiente</div>
+    </div>
+  </div>
+
+  <!-- Tabla de Clientes -->
+  <div class="tabla-card">
+    <h3>Lista de Clientes</h3>
+    
+    <div class="loading-spinner" *ngIf="cargando">
+      <div class="spinner"></div>
+      <p>Cargando clientes...</p>
+    </div>
+
+    <div class="tabla-container" *ngIf="!cargando">
+      <table class="tabla-clientes">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Contacto</th>
+            <th>Dirección</th>
+            <th>Saldo Pendiente</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="clientesFiltrados.length === 0">
+            <td colspan="7" class="no-data">
+              No hay clientes para mostrar
+            </td>
+          </tr>
+          <tr *ngFor="let cliente of clientesFiltrados">
+            <td>{{ cliente.clienteId }}</td>
+            <td>
+              <div class="cliente-info">
+                <strong>{{ cliente.nombreCliente }}</strong>
+              </div>
+            </td>
+            <td>
+              <div class="contacto-info">
+                <div class="correo">📧 {{ cliente.correo }}</div>
+                <div class="telefono">📞 {{ cliente.telefono }}</div>
+              </div>
+            </td>
+            <td class="direccion">{{ cliente.direccion }}</td>
+            <td class="saldo" [ngClass]="{'saldo-pendiente': cliente.saldoPendiente > 0}">
+              {{ formatearMoneda(cliente.saldoPendiente) }}
+            </td>
+            <td>
+              <span 
+                class="badge-estado"
+                [ngClass]="getEstadoSaldo(cliente.saldoPendiente).clase"
+              >
+                {{ getEstadoSaldo(cliente.saldoPendiente).texto }}
+              </span>
+            </td>
+            <td>
+              <div class="acciones">
+                <button
+                  class="btn-icon btn-edit"
+                  (click)="abrirFormularioEdicion(cliente)"
+                  title="Editar"
+                >
+                  ✏️
+                </button>
+                <button
+                  class="btn-icon btn-delete"
+                  (click)="eliminarCliente(cliente.clienteId)"
+                  title="Eliminar"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de Formulario -->
+  <div class="modal-overlay" *ngIf="mostrarFormulario" (click)="cerrarFormulario()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ modoEdicion ? 'Editar Cliente' : 'Nuevo Cliente' }}</h2>
+        <button class="btn-close" (click)="cerrarFormulario()">✕</button>
+      </div>
+
+      <form (ngSubmit)="guardarCliente()" class="form-cliente">
+        <div class="form-group">
+          <label for="nombreCliente">Nombre del Cliente *</label>
+          <input
+            type="text"
+            id="nombreCliente"
+            [(ngModel)]="clienteForm.nombreCliente"
+            name="nombreCliente"
+            required
+            class="form-control"
+            placeholder="Ej: Juan Pérez García"
+          />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="correo">Correo Electrónico *</label>
+            <input
+              type="email"
+              id="correo"
+              [(ngModel)]="clienteForm.correo"
+              name="correo"
+              required
+              class="form-control"
+              placeholder="ejemplo@correo.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="telefono">Teléfono *</label>
+            <input
+              type="text"
+              id="telefono"
+              [(ngModel)]="clienteForm.telefono"
+              name="telefono"
+              required
+              class="form-control"
+              placeholder="Ej: 5551234567"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="direccion">Dirección *</label>
+          <textarea
+            id="direccion"
+            [(ngModel)]="clienteForm.direccion"
+            name="direccion"
+            rows="3"
+            required
+            class="form-control"
+            placeholder="Dirección completa del cliente..."
+          ></textarea>
+        </div>
+
+        <div class="form-group" *ngIf="modoEdicion">
+          <label for="saldoPendiente">Saldo Pendiente</label>
+          <input
+            type="number"
+            id="saldoPendiente"
+            [(ngModel)]="clienteForm.saldoPendiente"
+            name="saldoPendiente"
+            step="0.01"
+            min="0"
+            class="form-control"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cerrarFormulario()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="cargando">
+            {{ cargando ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Crear') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,425 @@
+<div class="estado-resultado-container">
+  <!-- Header -->
+  <div class="header">
+    <h1>📊 Estado de Resultados</h1>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="abrirGenerarReporte()">
+        <span class="icon">🔄</span> Generar Reporte
+      </button>
+      <button class="btn btn-primary" (click)="abrirFormularioNuevo()">
+        <span class="icon">+</span> Nuevo Estado
+      </button>
+    </div>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="messages">
+    <div class="alert alert-success" *ngIf="mensajeExito">
+      {{ mensajeExito }}
+    </div>
+    <div class="alert alert-error" *ngIf="error">
+      {{ error }}
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros-card">
+    <h3>Filtros por Período</h3>
+    <div class="filtros-grid">
+      <div class="form-group">
+        <label for="filtroFechaInicio">Fecha Inicio</label>
+        <input
+          type="date"
+          id="filtroFechaInicio"
+          [(ngModel)]="filtros.fechaInicio"
+          class="form-control"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="filtroFechaFin">Fecha Fin</label>
+        <input
+          type="date"
+          id="filtroFechaFin"
+          [(ngModel)]="filtros.fechaFin"
+          class="form-control"
+        />
+      </div>
+    </div>
+
+    <div class="filtros-actions">
+      <button class="btn btn-primary" (click)="aplicarFiltros()">
+        🔍 Aplicar Filtros
+      </button>
+      <button class="btn btn-secondary" (click)="limpiarFiltros()">
+        🗑️ Limpiar
+      </button>
+    </div>
+  </div>
+
+  <!-- Resúmenes -->
+  <div class="resumenes-grid">
+    <div class="resumen-card total-general">
+      <div class="resumen-header">
+        <span class="resumen-icon">📋</span>
+        <h4>Total Reportes</h4>
+      </div>
+      <div class="resumen-valor">{{ estadosResultado.length }}</div>
+      <div class="resumen-detalle">estados generados</div>
+    </div>
+
+    <div class="resumen-card resultado-positivo">
+      <div class="resumen-header">
+        <span class="resumen-icon">📈</span>
+        <h4>Estados Positivos</h4>
+      </div>
+      <div class="resumen-valor">{{ getEstadosPositivos() }}</div>
+      <div class="resumen-detalle">con utilidad</div>
+    </div>
+
+    <div class="resumen-card resultado-negativo">
+      <div class="resumen-header">
+        <span class="resumen-icon">📉</span>
+        <h4>Estados Negativos</h4>
+      </div>
+      <div class="resumen-valor">{{ getEstadosNegativos() }}</div>
+      <div class="resumen-detalle">con pérdida</div>
+    </div>
+
+    <div class="resumen-card resultado-total">
+      <div class="resumen-header">
+        <span class="resumen-icon">💰</span>
+        <h4>Resultado Neto Acumulado</h4>
+      </div>
+      <div class="resumen-valor" [ngClass]="getColorResultado(getTotalResultadoNeto())">
+        {{ formatearMoneda(getTotalResultadoNeto()) }}
+      </div>
+      <div class="resumen-detalle">en todos los períodos</div>
+    </div>
+  </div>
+
+  <!-- Tabla de Estados de Resultado -->
+  <div class="tabla-card">
+    <h3>Historial de Estados de Resultado</h3>
+    
+    <div class="loading-spinner" *ngIf="cargando">
+      <div class="spinner"></div>
+      <p>Cargando estados de resultado...</p>
+    </div>
+
+    <div class="tabla-container" *ngIf="!cargando">
+      <table class="tabla-estados">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Período</th>
+            <th>Ingresos</th>
+            <th>Costos</th>
+            <th>Gastos</th>
+            <th>Utilidad Bruta</th>
+            <th>Resultado Neto</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="estadosFiltrados.length === 0">
+            <td colspan="8" class="no-data">
+              No hay estados de resultado para mostrar
+            </td>
+          </tr>
+          <tr *ngFor="let estado of estadosFiltrados" [ngClass]="getColorResultado(estado.resultadoNeto)">
+            <td>{{ estado.estadoResultadosId }}</td>
+            <td>
+              <div class="periodo-info">
+                <strong>{{ formatearFechaLegible(estado.fechaInicio) }} - {{ formatearFechaLegible(estado.fechaFin) }}</strong>
+                <small>{{ calcularDiasPeriodo(estado.fechaInicio, estado.fechaFin) }} días</small>
+              </div>
+            </td>
+            <td class="ingresos">{{ formatearMoneda(estado.ingresosTotales) }}</td>
+            <td class="costos">{{ formatearMoneda(estado.costosTotales) }}</td>
+            <td class="gastos">{{ formatearMoneda(estado.gastosTotales) }}</td>
+            <td class="utilidad-bruta">
+              {{ formatearMoneda(calcularUtilidadBruta(estado)) }}
+              <small>({{ calcularMargenUtilidadBruta(estado) | number:'1.1-1' }}%)</small>
+            </td>
+            <td class="resultado-neto">
+              <div class="resultado-info">
+                <span class="icon">{{ getIconoResultado(estado.resultadoNeto) }}</span>
+                <strong>{{ formatearMoneda(estado.resultadoNeto) }}</strong>
+                <small>({{ getTextoResultado(estado.resultadoNeto) }})</small>
+              </div>
+              <div class="margen-neto">
+                {{ calcularMargenUtilidadNeta(estado) | number:'1.1-1' }}%
+              </div>
+            </td>
+            <td>
+              <div class="acciones">
+                <button
+                  class="btn-icon btn-view"
+                  (click)="abrirDetalle(estado)"
+                  title="Ver Detalle"
+                >
+                  👁️
+                </button>
+                <button
+                  class="btn-icon btn-edit"
+                  (click)="abrirFormularioEdicion(estado)"
+                  title="Editar"
+                >
+                  ✏️
+                </button>
+                <button
+                  class="btn-icon btn-delete"
+                  (click)="eliminarEstadoResultado(estado.estadoResultadosId)"
+                  title="Eliminar"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de Formulario -->
+  <div class="modal-overlay" *ngIf="mostrarFormulario" (click)="cerrarFormulario()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ modoEdicion ? 'Editar Estado de Resultado' : 'Nuevo Estado de Resultado' }}</h2>
+        <button class="btn-close" (click)="cerrarFormulario()">✕</button>
+      </div>
+
+      <form (ngSubmit)="guardarEstadoResultado()" class="form-estado">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fechaInicio">Fecha Inicio *</label>
+            <input
+              type="date"
+              id="fechaInicio"
+              [(ngModel)]="estadoForm.fechaInicio"
+              name="fechaInicio"
+              required
+              class="form-control"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="fechaFin">Fecha Fin *</label>
+            <input
+              type="date"
+              id="fechaFin"
+              [(ngModel)]="estadoForm.fechaFin"
+              name="fechaFin"
+              required
+              class="form-control"
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ingresosTotales">Ingresos Totales *</label>
+            <input
+              type="number"
+              id="ingresosTotales"
+              [(ngModel)]="estadoForm.ingresosTotales"
+              name="ingresosTotales"
+              step="0.01"
+              min="0"
+              required
+              class="form-control"
+              placeholder="0.00"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="costosTotales">Costos Totales *</label>
+            <input
+              type="number"
+              id="costosTotales"
+              [(ngModel)]="estadoForm.costosTotales"
+              name="costosTotales"
+              step="0.01"
+              min="0"
+              required
+              class="form-control"
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="gastosTotales">Gastos Totales *</label>
+          <input
+            type="number"
+            id="gastosTotales"
+            [(ngModel)]="estadoForm.gastosTotales"
+            name="gastosTotales"
+            step="0.01"
+            min="0"
+            required
+            class="form-control"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="calculos-automaticos" *ngIf="estadoForm.ingresosTotales || estadoForm.costosTotales || estadoForm.gastosTotales">
+          <div class="calculo-item">
+            <span>Utilidad Bruta:</span>
+            <strong>{{ formatearMoneda((estadoForm.ingresosTotales || 0) - (estadoForm.costosTotales || 0)) }}</strong>
+          </div>
+          <div class="calculo-item">
+            <span>Resultado Neto Calculado:</span>
+            <strong [ngClass]="getColorResultado(((estadoForm.ingresosTotales || 0) - (estadoForm.costosTotales || 0) - (estadoForm.gastosTotales || 0)))">
+              {{ formatearMoneda((estadoForm.ingresosTotales || 0) - (estadoForm.costosTotales || 0) - (estadoForm.gastosTotales || 0)) }}
+            </strong>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cerrarFormulario()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="cargando">
+            {{ cargando ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Crear') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal para Generar Reporte -->
+  <div class="modal-overlay" *ngIf="mostrarGenerarReporte" (click)="cerrarGenerarReporte()">
+    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Generar Estado de Resultado</h2>
+        <button class="btn-close" (click)="cerrarGenerarReporte()">✕</button>
+      </div>
+
+      <div class="generar-reporte-content">
+        <p class="descripcion">
+          Genera un estado de resultado automáticamente para el período seleccionado.
+          El sistema calculará los ingresos, costos y gastos del período.
+        </p>
+
+        <form (ngSubmit)="generarReporte()" class="form-generar">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="generarInicio">Fecha Inicio *</label>
+              <input
+                type="date"
+                id="generarInicio"
+                [(ngModel)]="periodoGenerar.inicio"
+                name="generarInicio"
+                required
+                class="form-control"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="generarFin">Fecha Fin *</label>
+              <input
+                type="date"
+                id="generarFin"
+                [(ngModel)]="periodoGenerar.fin"
+                name="generarFin"
+                required
+                class="form-control"
+              />
+            </div>
+          </div>
+
+          <div class="periodo-info" *ngIf="periodoGenerar.inicio && periodoGenerar.fin">
+            <p>
+              Período seleccionado: 
+              <strong>{{ formatearFechaLegible(periodoGenerar.inicio) }} - {{ formatearFechaLegible(periodoGenerar.fin) }}</strong>
+              ({{ calcularDiasPeriodo(periodoGenerar.inicio, periodoGenerar.fin) }} días)
+            </p>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" (click)="cerrarGenerarReporte()">
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              class="btn btn-primary" 
+              [disabled]="cargando || !periodoGenerar.inicio || !periodoGenerar.fin"
+            >
+              {{ cargando ? 'Generando...' : 'Generar Reporte' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Vista Detallada -->
+  <div class="modal-overlay" *ngIf="mostrarDetalle" (click)="cerrarDetalle()">
+    <div class="modal-content modal-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Detalle del Estado de Resultado</h2>
+        <button class="btn-close" (click)="cerrarDetalle()">✕</button>
+      </div>
+
+      <div class="detalle-content" *ngIf="estadoSeleccionado">
+        <div class="detalle-header">
+          <h3>Período: {{ formatearFechaLegible(estadoSeleccionado.fechaInicio) }} - {{ formatearFechaLegible(estadoSeleccionado.fechaFin) }}</h3>
+          <span class="badge-estado" [ngClass]="getColorResultado(estadoSeleccionado.resultadoNeto)">
+            {{ getIconoResultado(estadoSeleccionado.resultadoNeto) }} 
+            {{ getTextoResultado(estadoSeleccionado.resultadoNeto) }}
+          </span>
+        </div>
+
+        <div class="estado-detalle">
+          <div class="estado-seccion ingresos">
+            <h4>Ingresos</h4>
+            <div class="monto">{{ formatearMoneda(estadoSeleccionado.ingresosTotales) }}</div>
+          </div>
+
+          <div class="estado-seccion costos">
+            <h4>Menos: Costos Totales</h4>
+            <div class="monto">{{ formatearMoneda(estadoSeleccionado.costosTotales) }}</div>
+          </div>
+
+          <div class="estado-seccion utilidad-bruta">
+            <h4>= Utilidad Bruta</h4>
+            <div class="monto">{{ formatearMoneda(calcularUtilidadBruta(estadoSeleccionado)) }}</div>
+            <div class="margen">({{ calcularMargenUtilidadBruta(estadoSeleccionado) | number:'1.1-1' }}%)</div>
+          </div>
+
+          <div class="estado-seccion gastos">
+            <h4>Menos: Gastos Totales</h4>
+            <div class="monto">{{ formatearMoneda(estadoSeleccionado.gastosTotales) }}</div>
+          </div>
+
+          <div class="estado-seccion resultado-neto" [ngClass]="getColorResultado(estadoSeleccionado.resultadoNeto)">
+            <h4>= Resultado Neto</h4>
+            <div class="monto">{{ formatearMoneda(estadoSeleccionado.resultadoNeto) }}</div>
+            <div class="margen">({{ calcularMargenUtilidadNeta(estadoSeleccionado) | number:'1.1-1' }}%)</div>
+          </div>
+        </div>
+
+        <div class="resumen-analisis">
+          <h4>Análisis del Período</h4>
+          <div class="analisis-grid">
+            <div class="analisis-item">
+              <span>Días del período:</span>
+              <strong>{{ calcularDiasPeriodo(estadoSeleccionado.fechaInicio, estadoSeleccionado.fechaFin) }}</strong>
+            </div>
+            <div class="analisis-item">
+              <span>Ingreso promedio por día:</span>
+              <strong>{{ formatearMoneda(estadoSeleccionado.ingresosTotales / calcularDiasPeriodo(estadoSeleccionado.fechaInicio, estadoSeleccionado.fechaFin)) }}</strong>
+            </div>
+            <div class="analisis-item">
+              <span>Resultado promedio por día:</span>
+              <strong>{{ formatearMoneda(estadoSeleccionado.resultadoNeto / calcularDiasPeriodo(estadoSeleccionado.fechaInicio, estadoSeleccionado.fechaFin)) }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

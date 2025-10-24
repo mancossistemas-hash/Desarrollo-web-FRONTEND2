@@ -1,0 +1,254 @@
+<div class="container">
+  <div class="header">
+    <h1>📚 Libro Diario</h1>
+    <button class="btn-primary" (click)="openCreateModal()">
+      ➕ Nueva Transacción
+    </button>
+  </div>
+
+  <!-- Mensajes de alerta -->
+  <div *ngIf="successMessage" class="alert alert-success">
+    ✅ {{ successMessage }}
+  </div>
+  <div *ngIf="errorMessage" class="alert alert-error">
+    ❌ {{ errorMessage }}
+  </div>
+
+  <!-- Loading spinner -->
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+  </div>
+
+  <!-- Tabla de transacciones -->
+  <div class="table-container" *ngIf="!loading">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Cuenta</th>
+          <th>Descripción</th>
+          <th>Tipo</th>
+          <th class="text-right">Débito</th>
+          <th class="text-right">Crédito</th>
+          <th>Documento</th>
+          <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let transaccion of transacciones">
+          <td>{{ transaccion.fecha | date:'dd/MM/yyyy' }}</td>
+          <td>
+            <span class="cuenta-badge">
+              {{ getCuentaNombreFromTransaccion(transaccion) }}
+            </span>
+          </td>
+          <td>{{ transaccion.descripcion }}</td>
+          <td>
+            <span class="tipo-badge" [class]="'tipo-' + transaccion.tipo_operacion.toLowerCase()">
+              {{ transaccion.tipo_operacion }}
+            </span>
+          </td>
+          <td class="text-right">
+            <span *ngIf="transaccion.debito > 0" class="amount debito">
+              Q {{ transaccion.debito | number:'1.2-2' }}
+            </span>
+            <span *ngIf="transaccion.debito === 0">-</span>
+          </td>
+          <td class="text-right">
+            <span *ngIf="transaccion.credito > 0" class="amount credito">
+              Q {{ transaccion.credito | number:'1.2-2' }}
+            </span>
+            <span *ngIf="transaccion.credito === 0">-</span>
+          </td>
+          <td>{{ transaccion.documentoRespaldo || '-' }}</td>
+          <td class="text-center">
+            <button class="btn-icon btn-edit" (click)="openEditModal(transaccion)" title="Editar">
+              ✏️
+            </button>
+            <button class="btn-icon btn-delete" (click)="deleteTransaccion(transaccion.transaccion_id!)" title="Eliminar">
+              🗑️
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="transacciones.length === 0">
+          <td colspan="8" class="text-center empty-state">
+            No hay transacciones registradas
+          </td>
+        </tr>
+      </tbody>
+      <tfoot *ngIf="transacciones.length > 0">
+        <tr class="total-row">
+          <td colspan="4" class="text-right"><strong>TOTALES:</strong></td>
+          <td class="text-right">
+            <strong class="total-debito">Q {{ getTotalDebito() | number:'1.2-2' }}</strong>
+          </td>
+          <td class="text-right">
+            <strong class="total-credito">Q {{ getTotalCredito() | number:'1.2-2' }}</strong>
+          </td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode ? '✏️ Editar Transacción' : '➕ Nueva Transacción' }}</h2>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <form (ngSubmit)="saveTransaccion()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fecha">Fecha *</label>
+              <input 
+                type="date" 
+                id="fecha" 
+                [(ngModel)]="currentTransaccion.fecha" 
+                name="fecha"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="tipo_operacion">Tipo de Operación *</label>
+              <select 
+                id="tipo_operacion" 
+                [(ngModel)]="currentTransaccion.tipo_operacion" 
+                name="tipo_operacion"
+                required
+              >
+                <option *ngFor="let tipo of tiposOperacion" [value]="tipo">{{ tipo }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cuenta">Cuenta *</label>
+            
+            <!-- DEBUG INFO -->
+            <div style="background: #f0f0f0; padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 12px;">
+              <strong>🔍 DEBUG:</strong><br>
+              Total cuentas: {{ cuentas.length }}<br>
+              Cuenta seleccionada (cuentaId): {{ currentTransaccion.cuenta.cuentaId || 'ninguna' }}<br>
+              showModal: {{ showModal }}<br>
+              ¿Array cuentas existe?: {{ cuentas ? 'Sí' : 'No' }}
+            </div>
+            
+            <select 
+              id="cuenta" 
+              [(ngModel)]="currentTransaccion.cuenta.cuentaId" 
+              name="cuenta"
+              required
+              (change)="onCuentaChange($event)"
+              class="form-control"
+            >
+              <option [ngValue]="null" selected>-- Seleccione una cuenta --</option>
+              <option 
+                *ngFor="let cuenta of cuentas; trackBy: trackByCuentaId" 
+                [ngValue]="cuenta.cuentaId"
+              >
+                {{ cuenta.codigoCuenta }} - {{ cuenta.nombreCuenta }}
+              </option>
+            </select>
+            
+            <!-- Lista de cuentas disponibles para debug -->
+            <details style="margin-top: 10px;">
+              <summary style="cursor: pointer; color: #666; font-size: 12px;">
+                🔍 Ver todas las cuentas cargadas ({{ cuentas.length }})
+              </summary>
+              <div style="background: #fff; border: 1px solid #ddd; padding: 10px; margin-top: 5px; max-height: 200px; overflow-y: auto;">
+                <div *ngIf="cuentas.length === 0" style="color: red; font-style: italic;">
+                  ⚠️ No hay cuentas cargadas
+                </div>
+                <table style="width: 100%; font-size: 11px;" *ngIf="cuentas.length > 0">
+                  <thead>
+                    <tr style="background: #f5f5f5;">
+                      <th style="padding: 5px; border: 1px solid #ddd;">ID</th>
+                      <th style="padding: 5px; border: 1px solid #ddd;">Código</th>
+                      <th style="padding: 5px; border: 1px solid #ddd;">Nombre</th>
+                      <th style="padding: 5px; border: 1px solid #ddd;">Tipo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let cuenta of cuentas">
+                      <td style="padding: 5px; border: 1px solid #ddd;">{{ cuenta.cuentaId }}</td>
+                      <td style="padding: 5px; border: 1px solid #ddd;">{{ cuenta.codigoCuenta }}</td>
+                      <td style="padding: 5px; border: 1px solid #ddd;">{{ cuenta.nombreCuenta }}</td>
+                      <td style="padding: 5px; border: 1px solid #ddd;">{{ cuenta.tipoCuenta }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </details>
+            
+            <small *ngIf="cuentas.length === 0" style="color: red; display: block; margin-top: 5px;">
+              ⚠️ No hay cuentas disponibles. Por favor, cree cuentas primero.
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label for="descripcion">Descripción *</label>
+            <textarea 
+              id="descripcion" 
+              [(ngModel)]="currentTransaccion.descripcion" 
+              name="descripcion"
+              rows="3"
+              required
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="debito">Débito (Q)</label>
+              <input 
+                type="number" 
+                id="debito" 
+                [(ngModel)]="currentTransaccion.debito" 
+                name="debito"
+                step="0.01"
+                min="0"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="credito">Crédito (Q)</label>
+              <input 
+                type="number" 
+                id="credito" 
+                [(ngModel)]="currentTransaccion.credito" 
+                name="credito"
+                step="0.01"
+                min="0"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="documentoRespaldo">Documento de Respaldo</label>
+            <input 
+              type="text" 
+              id="documentoRespaldo" 
+              [(ngModel)]="currentTransaccion.documentoRespaldo" 
+              name="documentoRespaldo"
+              placeholder="Ej: Factura #123"
+            >
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" (click)="closeModal()">
+              Cancelar
+            </button>
+            <button type="submit" class="btn-primary" [disabled]="loading">
+              {{ loading ? 'Guardando...' : (isEditMode ? 'Actualizar' : 'Guardar') }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

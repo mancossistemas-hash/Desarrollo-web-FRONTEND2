@@ -1,0 +1,257 @@
+<div class="bancos-caja-container">
+  <!-- Header -->
+  <div class="header">
+    <h1>Gestión de Bancos y Caja</h1>
+    <button class="btn btn-primary" (click)="abrirFormularioNuevo()">
+      <span class="icon">+</span> Nueva Transacción
+    </button>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="messages">
+    <div class="alert alert-success" *ngIf="mensajeExito">
+      {{ mensajeExito }}
+    </div>
+    <div class="alert alert-error" *ngIf="error">
+      {{ error }}
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros-card">
+    <h3>Filtros</h3>
+    <div class="filtros-grid">
+      <div class="form-group">
+        <label for="filtroBancoId">Banco</label>
+        <select id="filtroBancoId" [(ngModel)]="filtros.bancoId" class="form-control">
+          <option [value]="undefined">Todos los bancos</option>
+          <option *ngFor="let banco of bancos" [value]="banco.bancoId">
+            {{ banco.nombre }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="filtroTipo">Tipo de Transacción</label>
+        <select id="filtroTipo" [(ngModel)]="filtros.tipo" class="form-control">
+          <option value="">Todos</option>
+          <option *ngFor="let tipo of tiposTransaccion" [value]="tipo">
+            {{ tipo }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="filtroDesde">Fecha Desde</label>
+        <input
+          type="date"
+          id="filtroDesde"
+          [(ngModel)]="filtros.desde"
+          class="form-control"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="filtroHasta">Fecha Hasta</label>
+        <input
+          type="date"
+          id="filtroHasta"
+          [(ngModel)]="filtros.hasta"
+          class="form-control"
+        />
+      </div>
+    </div>
+
+    <div class="filtros-actions">
+      <button class="btn btn-primary" (click)="aplicarFiltros()">
+        Aplicar Filtros
+      </button>
+      <button class="btn btn-secondary" (click)="limpiarFiltros()">
+        Limpiar
+      </button>
+    </div>
+  </div>
+
+  <!-- Resúmenes -->
+  <div class="resumenes-grid">
+    <div class="resumen-card total-general">
+      <div class="resumen-header">
+        <span class="resumen-icon">💰</span>
+        <h4>Total General</h4>
+      </div>
+      <div class="resumen-valor">{{ formatearMoneda(totalGeneral) }}</div>
+    </div>
+
+    <div 
+      class="resumen-card"
+      *ngFor="let item of getTotalPorTipoArray()"
+      [style.border-left-color]="getColorTipo(item.tipo)"
+    >
+      <div class="resumen-header">
+        <span class="resumen-icon">📊</span>
+        <h4>{{ item.tipo }}</h4>
+      </div>
+      <div class="resumen-valor">{{ formatearMoneda(item.total) }}</div>
+    </div>
+  </div>
+
+  <!-- Tabla de Transacciones -->
+  <div class="tabla-card">
+    <h3>Transacciones</h3>
+    
+    <div class="loading-spinner" *ngIf="cargando">
+      <div class="spinner"></div>
+      <p>Cargando...</p>
+    </div>
+
+    <div class="tabla-container" *ngIf="!cargando">
+      <table class="tabla-transacciones">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Monto</th>
+            <th>Banco</th>
+            <th>Descripción</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="transaccionesFiltradas.length === 0">
+            <td colspan="7" class="no-data">
+              No hay transacciones para mostrar
+            </td>
+          </tr>
+          <tr *ngFor="let transaccion of transaccionesFiltradas">
+            <td>{{ transaccion.transaccionBancoId }}</td>
+            <td>{{ formatearFecha(transaccion.fecha) }}</td>
+            <td>
+              <span 
+                class="badge"
+                [style.background-color]="getColorTipo(transaccion.tipoTransaccion)"
+              >
+                {{ transaccion.tipoTransaccion }}
+              </span>
+            </td>
+            <td class="monto">{{ formatearMoneda(transaccion.monto) }}</td>
+            <td>
+              <span class="banco-badge">{{ getNombreBanco(transaccion) }}</span>
+            </td>
+            <td class="descripcion">{{ transaccion.descripcion || '-' }}</td>
+            <td>
+              <div class="acciones">
+                <button
+                  class="btn-icon btn-edit"
+                  (click)="abrirFormularioEdicion(transaccion)"
+                  title="Editar"
+                >
+                  ✏️
+                </button>
+                <button
+                  class="btn-icon btn-delete"
+                  (click)="eliminarTransaccion(transaccion.transaccionBancoId!)"
+                  title="Eliminar"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de Formulario -->
+  <div class="modal-overlay" *ngIf="mostrarFormulario" (click)="cerrarFormulario()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ modoEdicion ? 'Editar Transacción' : 'Nueva Transacción' }}</h2>
+        <button class="btn-close" (click)="cerrarFormulario()">✕</button>
+      </div>
+
+      <form (ngSubmit)="guardarTransaccion()" class="form-transaccion">
+        <div class="form-group">
+          <label for="fecha">Fecha *</label>
+          <input
+            type="date"
+            id="fecha"
+            [(ngModel)]="transaccionForm.fecha"
+            name="fecha"
+            required
+            class="form-control"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="tipoTransaccion">Tipo de Transacción *</label>
+          <select
+            id="tipoTransaccion"
+            [(ngModel)]="transaccionForm.tipoTransaccion"
+            name="tipoTransaccion"
+            required
+            class="form-control"
+          >
+            <option value="">Seleccione un tipo</option>
+            <option *ngFor="let tipo of tiposTransaccion" [value]="tipo">
+              {{ tipo }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="monto">Monto *</label>
+          <input
+            type="number"
+            id="monto"
+            [(ngModel)]="transaccionForm.monto"
+            name="monto"
+            step="0.01"
+            min="0"
+            required
+            class="form-control"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="bancoId">Banco *</label>
+          <select
+            id="bancoId"
+            [(ngModel)]="transaccionForm.bancoId"
+            name="bancoId"
+            required
+            class="form-control"
+          >
+            <option value="">Seleccione un banco</option>
+            <option *ngFor="let banco of bancos" [value]="banco.bancoId">
+              {{ banco.nombre }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="descripcion">Descripción</label>
+          <textarea
+            id="descripcion"
+            [(ngModel)]="transaccionForm.descripcion"
+            name="descripcion"
+            rows="3"
+            class="form-control"
+            placeholder="Descripción de la transacción..."
+          ></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cerrarFormulario()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="cargando">
+            {{ cargando ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Crear') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

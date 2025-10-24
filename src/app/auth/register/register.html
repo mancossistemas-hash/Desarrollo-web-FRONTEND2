@@ -1,0 +1,41 @@
+<section class="auth">
+  <form [formGroup]="form" (ngSubmit)="submit()" class="card">
+    <h1>Crear cuenta</h1>
+
+    <label>
+      <span>Nombre</span>
+      <input type="text" formControlName="nombreUsuario" placeholder="Nombre completo">
+    </label>
+
+    <label>
+      <span>Email</span>
+      <input type="email" formControlName="email" placeholder="usuario@empresa.com">
+    </label>
+
+    <label>
+      <span>Contraseña</span>
+      <input type="password" formControlName="password" placeholder="mínimo 6 caracteres">
+    </label>
+
+    <label>
+      <span>Rol</span>
+      <select formControlName="rol">
+        <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+        <option value="CONTADOR">CONTADOR</option>
+        <option value="CAJERO">CAJERO</option>
+      </select>
+    </label>
+
+    <button class="btn" [disabled]="loading">
+      {{ loading ? 'Creando...' : 'Registrarme' }}
+    </button>
+
+    <p class="muted">
+      ¿Ya tienes cuenta?
+      <a routerLink="/login">Inicia sesión</a>
+    </p>
+
+    <p class="error" *ngIf="error">{{ error }}</p>
+    <p class="ok" *ngIf="success">{{ success }}</p>
+  </form>
+</section>

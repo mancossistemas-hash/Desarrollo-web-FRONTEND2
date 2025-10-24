@@ -1,0 +1,85 @@
+<section class="dash">
+
+  <!-- Cargando -->
+  <div class="loading" *ngIf="loading()">
+    <div class="skeleton kpi"></div>
+    <div class="skeleton kpi"></div>
+    <div class="skeleton kpi"></div>
+    <div class="skeleton kpi"></div>
+    <div class="skeleton tile"></div>
+    <div class="skeleton tile"></div>
+    <div class="skeleton tile"></div>
+    <div class="skeleton tile"></div>
+  </div>
+
+  <!-- Error -->
+  <div class="error" *ngIf="!loading() && error()">
+    <p><strong>⚠️ Error al cargar el dashboard</strong></p>
+    <p>{{ error() }}</p>
+    <button (click)="ngOnInit()">🔄 Reintentar</button>
+  </div>
+
+  <!-- Contenido -->
+  <ng-container *ngIf="!loading() && data() as d">
+
+    <!-- Header -->
+    <header class="head">
+      <div class="info">
+        <h1>📊 Dashboard</h1>
+        <p class="muted">Rol: <strong>{{ d.role || '—' }}</strong> • {{ getFecha() }}</p>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <section class="kpis" *ngIf="d.kpis?.length">
+      <div class="kpi" *ngFor="let k of d.kpis">
+        <span class="k-title">{{ k.title }}</span>
+        <span class="k-value">{{ k.value }}</span>
+      </div>
+    </section>
+
+    <!-- Alertas -->
+    <section class="alerts" *ngIf="d.alerts?.length">
+      <div class="alert" 
+           [class.warn]="a.type==='warning'" 
+           [class.info]="a.type==='info'"
+           [class.err]="a.type==='error'" 
+           [class.ok]="a.type==='success'"
+           *ngFor="let a of d.alerts">
+        {{ a.text }}
+      </div>
+    </section>
+
+    <!-- Módulos disponibles -->
+    <div *ngIf="d.cards?.length">
+      <h2 class="section-title">🗂️ Módulos disponibles</h2>
+      <section class="grid">
+        <button class="tile" *ngFor="let c of d.cards" (click)="go(c.path)">
+          <span class="t-icon" *ngIf="c.icon">{{ c.icon }}</span>
+          <span class="t-label">{{ c.label }}</span>
+          <span class="t-desc">{{ c.description || 'Ir a ' + c.label }}</span>
+        </button>
+      </section>
+    </div>
+
+    <!-- Últimos asientos (CONTADOR/ADMINISTRADOR) -->
+    <section class="table" *ngIf="d.ultimosAsientos?.length">
+      <h2>📝 Últimos movimientos</h2>
+      <div class="thead">
+        <span>ID</span>
+        <span>Fecha</span>
+        <span>Descripción</span>
+        <span>Débito</span>
+        <span>Crédito</span>
+      </div>
+      <div class="row" *ngFor="let x of d.ultimosAsientos">
+        <span>{{ x.id }}</span>
+        <span>{{ x.fecha || '—' }}</span>
+        <span>{{ x.descripcion }}</span>
+        <span>Q {{ x.debito | number:'1.2-2' }}</span>
+        <span>Q {{ x.credito | number:'1.2-2' }}</span>
+      </div>
+    </section>
+
+  </ng-container>
+</section>

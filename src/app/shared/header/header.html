@@ -1,0 +1,98 @@
+<header class="header" *ngIf="isAuthenticated()">
+  <div class="container">
+    <!-- Brand & Hamburger -->
+    <div class="brand">
+      <button 
+        *ngIf="nav().length > 0"
+        class="hamburger" 
+        (click)="toggleMobile()" 
+        aria-label="Abrir menú" 
+        [attr.aria-expanded]="mobileOpen()">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+      <a class="logo" routerLink="/dashboard">
+        <span class="logo-icon">📊</span>
+        <span class="logo-text">{{ appName }}</span>
+      </a>
+    </div>
+
+    <!-- Desktop Navigation -->
+    <nav class="nav desktop" aria-label="Navegación principal" *ngIf="nav().length > 0">
+      <a *ngFor="let link of nav()"
+         [routerLink]="link.path"
+         routerLinkActive="active"
+         [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
+         class="nav-link">
+        <span class="nav-label">{{ link.label }}</span>
+        <span class="nav-indicator"></span>
+      </a>
+    </nav>
+
+    <!-- User Actions -->
+    <div class="actions">
+      <!-- Theme Toggle -->
+      <button 
+        class="theme-toggle" 
+        (click)="toggleDark()" 
+        [attr.aria-pressed]="dark()" 
+        [class.dark]="dark()"
+        aria-label="Alternar modo oscuro"
+        title="Cambiar tema">
+        <span class="theme-icon">{{ dark() ? '🌙' : '☀️' }}</span>
+      </button>
+      
+      <!-- User Menu -->
+      <div class="user-menu">
+        <div class="user-avatar" [style.background]="getAvatarColor()">
+          <span class="avatar-text">{{ getAvatarInitials() }}</span>
+        </div>
+        <div class="user-info">
+          <span class="username">{{ getUsername() }}</span>
+          <span class="user-role">{{ userRole() }}</span>
+        </div>
+        <button class="logout-btn" (click)="logout()" title="Cerrar sesión">
+          🚪
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Navigation -->
+  <nav class="nav mobile" [class.open]="mobileOpen()" aria-label="Navegación móvil" *ngIf="nav().length > 0">
+    <div class="mobile-nav-header">
+      <div class="mobile-user-info">
+        <div class="user-avatar small" [style.background]="getAvatarColor()">
+          <span class="avatar-text">{{ getAvatarInitials() }}</span>
+        </div>
+        <div class="mobile-user-details">
+          <span class="mobile-username">{{ getUsername() }}</span>
+          <span class="mobile-user-role">{{ userRole() }}</span>
+        </div>
+      </div>
+      <button class="close-mobile" (click)="closeMobile()" aria-label="Cerrar menú">
+        <span class="close-icon">✕</span>
+      </button>
+    </div>
+    
+    <div class="mobile-nav-content">
+      <a *ngFor="let link of nav()"
+         (click)="closeMobile()"
+         [routerLink]="link.path"
+         routerLinkActive="active"
+         [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
+         class="mobile-nav-link">
+        <span class="mobile-nav-label">{{ link.label }}</span>
+      </a>
+      
+      <button class="mobile-logout" (click)="logout()">
+        <span class="logout-icon">🚪</span>
+        <span>Cerrar sesión</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Overlay -->
+  <div class="mobile-overlay" [class.active]="mobileOpen()" (click)="closeMobile()"></div>
+</header>
